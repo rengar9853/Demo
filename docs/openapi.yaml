@@ -1,0 +1,176 @@
+openapi: 3.0.3
+info:
+  title: Ecommerce Core APIs
+  version: 0.1.0
+  description: |
+    Core API draft for modular ecommerce system (User, Product, Order, Coupon, Payment).
+servers:
+  - url: https://api.example.com
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        traceId: { type: string }
+
+    CreateOrderRequest:
+      type: object
+      required: [requestId, addressId, items]
+      properties:
+        requestId: { type: string, example: req_20260309001 }
+        addressId: { type: integer, format: int64 }
+        couponCode: { type: string, nullable: true }
+        items:
+          type: array
+          items:
+            type: object
+            required: [skuId, quantity]
+            properties:
+              skuId: { type: integer, format: int64 }
+              quantity: { type: integer, minimum: 1 }
+
+    CreateOrderResponse:
+      type: object
+      properties:
+        orderNo: { type: string }
+        orderStatus: { type: string, example: PENDING_PAY }
+        payableAmount: { type: number, format: double }
+
+    CreatePaymentRequest:
+      type: object
+      required: [orderNo, channel]
+      properties:
+        orderNo: { type: string }
+        channel:
+          type: string
+          enum: [WECHAT, ALIPAY]
+
+    CreatePaymentResponse:
+      type: object
+      properties:
+        payNo: { type: string }
+        channel: { type: string }
+        payParams:
+          type: object
+          additionalProperties: true
+
+security:
+  - bearerAuth: []
+
+paths:
+  /v1/products:
+    get:
+      summary: 商品列表
+      parameters:
+        - in: query
+          name: keyword
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 20, maximum: 100 }
+      responses:
+        '200':
+          description: ok
+
+  /v1/products/{skuId}:
+    get:
+      summary: 商品详情
+      parameters:
+        - in: path
+          name: skuId
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: ok
+
+  /v1/coupons/receive:
+    post:
+      summary: 领券
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [templateId]
+              properties:
+                templateId: { type: integer, format: int64 }
+      responses:
+        '200': { description: ok }
+
+  /v1/orders:
+    post:
+      summary: 创建订单
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateOrderResponse'
+        '409':
+          description: 库存不足/优惠券不可用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/orders/{orderNo}:
+    get:
+      summary: 订单详情
+      parameters:
+        - in: path
+          name: orderNo
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: ok }
+
+  /v1/payments:
+    post:
+      summary: 创建支付单
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentRequest'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatePaymentResponse'
+
+  /v1/payments/notify/{channel}:
+    post:
+      security: []
+      summary: 第三方支付回调（网关白名单 + 签名校验）
+      parameters:
+        - in: path
+          name: channel
+          required: true
+          schema:
+            type: string
+            enum: [wechat, alipay]
+      responses:
+        '200': { description: success ack }
