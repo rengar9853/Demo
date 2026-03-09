@@ -156,6 +156,7 @@ CREATE TABLE IF NOT EXISTS order_item (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_order_item_order_no (order_no),
   KEY idx_order_item_sku_id (sku_id),
+  CONSTRAINT fk_order_item_order_no FOREIGN KEY (order_no) REFERENCES order_main(order_no),
   CONSTRAINT fk_order_item_sku FOREIGN KEY (sku_id) REFERENCES product_sku(id)
 ) ENGINE=InnoDB;
 
@@ -176,6 +177,7 @@ CREATE TABLE IF NOT EXISTS order_payment (
   UNIQUE KEY uk_order_no_channel (order_no, channel),
   KEY idx_payment_user_id (user_id),
   KEY idx_payment_status_created (pay_status, created_at),
+  CONSTRAINT fk_payment_order_no FOREIGN KEY (order_no) REFERENCES order_main(order_no),
   CONSTRAINT fk_payment_user FOREIGN KEY (user_id) REFERENCES user(id)
 ) ENGINE=InnoDB;
 
